@@ -58,6 +58,17 @@
    (pasmo), wtyczka nie powtarza progów — dwie kopie rozjechałyby się przy pierwszej
    korekcie wag. */
 .calmfox-watch .cw-score-value { margin: 4px 0 0; font-size: 40px; font-weight: 700; line-height: 1; }
+/* Pierścień kondycji. Rozmiary tekstu są w jednostkach rysunku (pole 220), a nie w px:
+   SVG skaluje się do szerokości kolumny, więc px dawałyby inny rozmiar liczby przy
+   każdej szerokości karty. */
+.calmfox-watch .cw-ring { width: 170px; max-width: 60%; margin: 8px 0 4px; }
+.calmfox-watch .cw-ring svg { display: block; width: 100%; height: auto; }
+.calmfox-watch .cw-ring-value { font-size: 52px; font-weight: 700; }
+.calmfox-watch .cw-ring-max { font-size: 18px; font-weight: 400; fill: #646970; }
+.calmfox-watch .cw-ring-value.cw-score-ok { fill: #00a32a; }
+.calmfox-watch .cw-ring-value.cw-score-warn { fill: #bd8600; }
+.calmfox-watch .cw-ring-value.cw-score-bad { fill: #d63638; }
+.calmfox-watch .cw-ring-value.cw-score-muted { fill: #646970; }
 .calmfox-watch .cw-score-max { margin-left: 4px; font-size: 15px; font-weight: 400; color: #646970; }
 .calmfox-watch .cw-score-ok { color: #00a32a; }
 .calmfox-watch .cw-score-warn { color: #bd8600; }

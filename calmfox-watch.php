@@ -26,6 +26,7 @@ require_once CALMFOX_WATCH_DIR.'includes/class-history.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-endpoint.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-hub.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-score.php';
+require_once CALMFOX_WATCH_DIR.'includes/class-score-ring.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-admin.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-repairs.php';
 require_once CALMFOX_WATCH_DIR.'includes/class-updater.php';

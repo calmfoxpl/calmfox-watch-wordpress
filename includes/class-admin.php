@@ -497,6 +497,80 @@ final class Calmfox_Watch_Admin {
 	 * Szczegółów odjęć tu nie ma i mieć nie będzie (patrz Calmfox_Watch_Score): ekran
 	 * administracyjny widzi też ten, kto stronę przejął.
 	 */
+	/**
+	 * Pierścień kondycji: ten sam rysunek, co w panelu i w aplikacji mobilnej.
+	 *
+	 * Rysujemy w dwóch przebiegach: najpierw wszystkie tory („ile mogło być punktów"),
+	 * potem wypełnienia na wierzchu. Inaczej łuk sąsiada przykrywałby początek następnego.
+	 * Wypełnienie to `stroke-dasharray` na TEJ SAMEJ ścieżce — bez JavaScriptu, bo panel
+	 * administracyjny nie ma powodu ładować skryptu dla obrazka.
+	 *
+	 * Obszar niezmierzony dostaje tor kreskowany i zero wypełnienia: od razu widać, że tam
+	 * nie mierzymy, a barwna kropka sugerowałaby pomiar, który wyszedł zero.
+	 *
+	 * @param array<string, mixed> $score Ocena z huba.
+	 */
+	private static function render_score_ring(array $score): void {
+		$areas    = is_array($score['areas'] ?? null) ? $score['areas'] : array();
+		$segments = Calmfox_Watch_Score_Ring::segments($areas);
+		$tone     = Calmfox_Watch_Score::tone_class((string) ($score['tone'] ?? 'muted'));
+		$overall  = (string) ($score['overall'] ?? '—');
+
+		if (array() === $segments) {
+			// Bez obszarów nie ma z czego rysować pierścienia, ale liczba nadal jest prawdziwa.
+			echo '<p class="cw-score-value '.esc_attr($tone).'">';
+			echo esc_html($overall).'<span class="cw-score-max">/100</span></p>';
+
+			return;
+		}
+
+		echo '<div class="cw-ring">';
+		printf(
+			'<svg viewBox="0 0 %1$d %1$d" role="img" aria-label="%2$s">',
+			(int) Calmfox_Watch_Score_Ring::BOX,
+			/* translators: %s: ocena strony w skali 0-100 */
+			esc_attr(sprintf(__('Kondycja strony: %s na 100.', 'calmfox-watch'), $overall))
+		);
+
+		foreach ($segments as $segment) {
+			printf(
+				'<path d="%s" fill="none" stroke="%s" stroke-width="%d" stroke-linecap="round"%s />',
+				esc_attr((string) $segment['d']),
+				esc_attr(Calmfox_Watch_Score_Ring::TRACK_COLOR),
+				(int) Calmfox_Watch_Score_Ring::WIDTH,
+				$segment['measured'] ? '' : ' stroke-dasharray="2 7"'
+			);
+		}
+
+		foreach ($segments as $segment) {
+			if ($segment['fill'] <= 0) {
+				continue;
+			}
+			printf(
+				'<path d="%s" fill="none" stroke="%s" stroke-width="%d" stroke-linecap="round" stroke-dasharray="%s %s" />',
+				esc_attr((string) $segment['d']),
+				esc_attr((string) $segment['color']),
+				(int) Calmfox_Watch_Score_Ring::WIDTH,
+				esc_attr((string) $segment['fill']),
+				esc_attr((string) ($segment['length'] + 1))
+			);
+		}
+
+		// Liczba i skala w DWÓCH wierszach, oba wyśrodkowane. Jeden wiersz („82/100")
+		// centruje się jako całość, więc sama liczba uciekała w lewo od środka pierścienia.
+		printf(
+			'<text x="110" y="118" text-anchor="middle" class="cw-ring-value %s">%s</text>',
+			esc_attr($tone),
+			esc_html($overall)
+		);
+		printf(
+			'<text x="110" y="142" text-anchor="middle" class="cw-ring-max">%s</text>',
+			esc_html__('na 100', 'calmfox-watch')
+		);
+		echo '</svg>';
+		echo '</div>';
+	}
+
 	private static function render_score_card(): void {
 		$score = Calmfox_Watch_Score::get();
 		if (null === $score) {
@@ -505,8 +579,7 @@ final class Calmfox_Watch_Admin {
 
 		echo '<div class="card cw-card cw-score">';
 		echo '<h2>'.esc_html__('Kondycja strony', 'calmfox-watch').'</h2>';
-		echo '<p class="cw-score-value '.esc_attr(Calmfox_Watch_Score::tone_class((string) ($score['tone'] ?? 'muted'))).'">';
-		echo esc_html((string) ($score['overall'] ?? '—')).'<span class="cw-score-max">/100</span></p>';
+		self::render_score_ring($score);
 
 		$coverage = (int) ($score['coverage'] ?? 0);
 		$measured = 0;
