@@ -347,8 +347,8 @@ final class Calmfox_Watch_Admin {
 		echo '<div class="calmfox-watch cw-widget">';
 
 		if (!Calmfox_Watch_Settings::get('connected')) {
-			echo '<p>'.esc_html__('Monitoring wnętrza strony nie jest jeszcze połączony z panelem. Sprawdzenia działają lokalnie, ale nikt o nich nie wie poza tym ekranem.', 'calmfox-watch').'</p>';
-			echo '<p><a class="button button-primary" href="'.esc_url(self::screen_url()).'">'.esc_html__('Połącz z Calmfox Watch', 'calmfox-watch').'</a></p></div>';
+			self::render_widget_invite();
+			echo '</div>';
 
 			return;
 		}
@@ -357,18 +357,31 @@ final class Calmfox_Watch_Admin {
 		$security = Calmfox_Watch_Endpoint::payload('security');
 		$summary  = self::summary($health, $security);
 
-		echo '<p class="cw-widget-head">'.self::badge($summary['status']).' ';
-		echo esc_html(sprintf(
-			/* translators: 1: liczba sprawdzeń bez zastrzeżeń, 2: liczba ostrzeżeń, 3: liczba awarii */
-			__('Sprawdzenia: %1$d w porządku, %2$d z ostrzeżeniem, %3$d z awarią.', 'calmfox-watch'),
-			$summary['counts']['ok'], $summary['counts']['warn'], $summary['counts']['fail']
-		));
+		// Ocena jest z huba i na progu Free jej NIE MA. Wtedy miejsce pierścienia zajmuje
+		// tor bez wypełnienia, a obok staje zachęta — tak samo, jak w pakietach Magento
+		// i Sylius, żeby ten sam klient z dwiema stronami widział ten sam kafelek.
+		$score    = Calmfox_Watch_Score::get();
+		$segments = null !== $score && is_array($score['areas'] ?? null)
+			? Calmfox_Watch_Score_Ring::segments($score['areas'])
+			: array();
+
 		$last_poll = (int) Calmfox_Watch_Settings::get('last_poll_at');
-		if ($last_poll > 0) {
+		echo '<p class="cw-widget-head">'.self::badge($summary['status']).' ';
+		echo $last_poll > 0
 			/* translators: %s: ile czasu temu */
-			echo ' '.esc_html(sprintf(__('Ostatnie odpytanie monitoringu: %s temu.', 'calmfox-watch'), human_time_diff($last_poll)));
-		}
+			? esc_html(sprintf(__('Ostatnie odpytanie monitoringu: %s temu.', 'calmfox-watch'), human_time_diff($last_poll)))
+			: esc_html__('Monitoring jeszcze nie odpytał endpointu — pierwsze sprawdzenie w ciągu kilku minut.', 'calmfox-watch');
 		echo '</p>';
+
+		echo '<div class="cw-widget-body">';
+		if (null === $score) {
+			self::render_ghost_ring();
+		} else {
+			self::render_score_ring($score);
+		}
+
+		echo '<div class="cw-widget-rest">';
+		self::render_widget_counts($summary['counts']);
 
 		if (empty($summary['problems'])) {
 			echo '<p>'.esc_html__('Nic nie wymaga uwagi.', 'calmfox-watch').'</p>';
@@ -389,6 +402,10 @@ final class Calmfox_Watch_Admin {
 			}
 		}
 
+		if (array() !== $segments) {
+			self::render_widget_areas($segments);
+		}
+
 		// Parametry monitoringu: co na tej stronie w ogóle pilnujemy. Bez tej listy
 		// „nic nie wymaga uwagi" nie mówi, CZEGO właściwie nic nie wymaga.
 		$checks = isset($health['checks']) && is_array($health['checks']) ? $health['checks'] : array();
@@ -404,19 +421,125 @@ final class Calmfox_Watch_Admin {
 			echo '</div>';
 		}
 
-		// Pakiet: na Free zapraszamy wyżej, ale mówimy wprost, co Free daje, a czego nie.
-		$plan = (string) Calmfox_Watch_Settings::get('plan');
-		if ('' === $plan || 'free' === strtolower($plan)) {
-			echo '<div class="cw-widget-plan"><span class="cw-detail">';
-			echo esc_html__('Strona jest w pakiecie Free: sprawdzenia strony głównej i kontrola certyfikatu. Wyższy próg dokłada częstsze sondy, przegląd podstron i powiadomienia bez limitu.', 'calmfox-watch');
-			echo '</span></div>';
+		if (null === $score) {
+			self::render_widget_upsell();
 		}
 
-		echo '<p><a class="button" href="'.esc_url(self::screen_url()).'">'.esc_html__('Otwórz Calmfox Watch', 'calmfox-watch').'</a>';
-		if ('' === $plan || 'free' === strtolower($plan)) {
-			echo ' <a class="button button-primary" href="'.esc_url(Calmfox_Watch_Settings::panel_link('/app/plan')).'" target="_blank" rel="noopener">'.esc_html__('Zobacz pakiety', 'calmfox-watch').'</a>';
+		echo '</div></div>';
+
+		// Dwa wyjścia i nic więcej: szczegóły sprawdzeń są na ekranie wtyczki, historia
+		// i incydenty w panelu. Kafelek ma do nich prowadzić, nie je zastępować.
+		echo '<p class="cw-widget-actions"><a class="button" href="'.esc_url(self::screen_url()).'">'.esc_html__('Otwórz Calmfox Watch', 'calmfox-watch').'</a> ';
+		// Podpis przycisku jest STAŁY, a host siedzi w adresie i w tytule: „Panel localhost"
+		// na środowisku testowym czyta się jak awaria, a nie jak nazwa panelu.
+		echo '<a class="button button-primary" href="'.esc_url(Calmfox_Watch_Settings::panel_link()).'" title="'.esc_attr((string) wp_parse_url(Calmfox_Watch_Settings::panel_url(), PHP_URL_HOST)).'" target="_blank" rel="noopener">'.esc_html__('Panel Calmfox Watch', 'calmfox-watch').'</a></p>';
+
+		echo '</div>';
+	}
+
+	/**
+	 * Kafelek na pulpicie strony, która jeszcze nie jest połączona z panelem.
+	 *
+	 * Zachęta stoi OBOK pustego pierścienia, a nie w oderwaniu od niego: klient widzi
+	 * dokładnie to miejsce, w którym po połączeniu stanie ocena. Korzyści są sprawdzalne
+	 * w kodzie huba, nie wymyślone. Ceny tu NIE MA świadomie: cennik się zmienia,
+	 * a wersje wtyczki zostają na stronach na długo.
+	 */
+	private static function render_widget_invite(): void {
+		echo '<div class="cw-widget-body">';
+		self::render_ghost_ring();
+		echo '<div class="cw-widget-rest"><div class="cw-widget-upsell">';
+		echo '<h3>'.esc_html__('Sprawdzenia już działają — ale wie o nich tylko ten ekran', 'calmfox-watch').'</h3>';
+		echo '<ul>';
+		echo '<li>'.esc_html__('wiadomość o awarii, zanim zadzwoni pierwszy klient', 'calmfox-watch').'</li>';
+		echo '<li>'.esc_html__('historia zmian wersji — co się zmieniło tuż przed awarią', 'calmfox-watch').'</li>';
+		echo '<li>'.esc_html__('kondycja strony jedną liczbą, z pięciu obszarów', 'calmfox-watch').'</li>';
+		echo '</ul>';
+		echo '<a class="button button-primary" href="'.esc_url(self::screen_url()).'">'.esc_html__('Połącz stronę — pakiet Free bez hasła', 'calmfox-watch').'</a>';
+		echo '</div></div></div>';
+	}
+
+	/**
+	 * Pierścień ZASTĘPCZY: same tory w prawdziwych proporcjach, bez barw i bez liczby.
+	 *
+	 * Pokazuje kształt tego, co dochodzi po połączeniu (albo od progu Start), i świadomie
+	 * nie udaje pomiaru — dlatego nie ma tu ani jednej liczby o stanie strony.
+	 */
+	private static function render_ghost_ring(): void {
+		echo '<div class="cw-ring">';
+		printf('<svg viewBox="0 0 %1$d %1$d" aria-hidden="true">', (int) Calmfox_Watch_Score_Ring::BOX);
+		foreach (Calmfox_Watch_Score_Ring::placeholder() as $segment) {
+			printf(
+				'<path d="%s" fill="none" stroke="%s" stroke-width="%d" stroke-linecap="round" stroke-dasharray="2 7" />',
+				esc_attr((string) $segment['d']),
+				esc_attr(Calmfox_Watch_Score_Ring::TRACK_COLOR),
+				(int) Calmfox_Watch_Score_Ring::WIDTH
+			);
 		}
-		echo '</p></div>';
+		echo '</svg></div>';
+	}
+
+	/**
+	 * Trzy liczby zamiast zdania: na pulpicie ma zadziałać jedno spojrzenie.
+	 *
+	 * Zero uwag i zero awarii przygaszamy, bo zero nie jest wiadomością, tylko jej brakiem.
+	 *
+	 * @param array<string, int> $counts
+	 */
+	private static function render_widget_counts(array $counts): void {
+		$tiles = array(
+			array('ok', __('w porządku', 'calmfox-watch'), 'cw-count-ok'),
+			array('warn', __('uwagi', 'calmfox-watch'), 'cw-count-warn'),
+			array('fail', __('awarie', 'calmfox-watch'), 'cw-count-fail'),
+		);
+
+		echo '<div class="cw-counts">';
+		foreach ($tiles as $tile) {
+			list($key, $label, $class) = $tile;
+			$how_many = (int) ($counts[$key] ?? 0);
+			echo '<span class="cw-count '.esc_attr($class).(0 === $how_many ? ' cw-count-zero' : '').'">';
+			echo '<b>'.esc_html((string) $how_many).'</b>';
+			echo '<span>'.esc_html($label).'</span></span>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Legenda pierścienia: który obszar jest którą barwą i ile w nim punktów.
+	 *
+	 * Obszar niezmierzony dostaje szarą kropkę i kreskę zamiast liczby — barwna kropka
+	 * sugerowałaby pomiar, który wyszedł zero.
+	 *
+	 * @param array<int, array<string, mixed>> $segments
+	 */
+	private static function render_widget_areas(array $segments): void {
+		echo '<ul class="cw-widget-areas">';
+		foreach ($segments as $segment) {
+			$color = !empty($segment['measured']) ? (string) $segment['color'] : '#c3c4c7';
+			echo '<li><span class="cw-widget-dot" style="background: '.esc_attr($color).'"></span>';
+			echo esc_html((string) $segment['label']);
+			echo ' <b>'.esc_html(!empty($segment['measured']) ? (string) $segment['score'] : '—').'</b></li>';
+		}
+		echo '</ul>';
+	}
+
+	/**
+	 * Próg płatny opisany TAM, gdzie oceny brakuje — obok pustego pierścienia.
+	 *
+	 * Liczby są sprawdzalne w kodzie huba: sonda na Free chodzi co 300 s, na Start co 60 s,
+	 * a ocena i dobowe raporty wchodzą od Start. Ceny nie podajemy: cennik się zmienia,
+	 * a ta wersja wtyczki zostanie na stronie na długo.
+	 */
+	private static function render_widget_upsell(): void {
+		echo '<div class="cw-widget-upsell">';
+		echo '<h3>'.esc_html__('Kondycja strony wchodzi od pakietu Start', 'calmfox-watch').'</h3>';
+		echo '<ul>';
+		echo '<li>'.esc_html__('ocena 0–100 z pięciu obszarów — ta, której miejsce widzisz obok', 'calmfox-watch').'</li>';
+		echo '<li>'.esc_html__('sprawdzenia co minutę zamiast co pięć', 'calmfox-watch').'</li>';
+		echo '<li>'.esc_html__('dobowe raporty: co się zmieniło i kiedy', 'calmfox-watch').'</li>';
+		echo '</ul>';
+		echo '<a class="button button-primary" href="'.esc_url(Calmfox_Watch_Settings::panel_link('/app/plan')).'" target="_blank" rel="noopener">'.esc_html__('Zobacz, co dokłada wyższy próg', 'calmfox-watch').'</a>';
+		echo '</div>';
 	}
 
 	/**

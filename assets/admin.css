@@ -52,7 +52,38 @@
 .calmfox-watch.cw-widget .cw-widget-dot-ok { background: #116329; }
 .calmfox-watch.cw-widget .cw-widget-dot-warn { background: #996800; }
 .calmfox-watch.cw-widget .cw-widget-dot-fail { background: #b32d2e; }
-.calmfox-watch.cw-widget .cw-widget-plan { margin-top: 10px; padding: 8px 10px; border-left: 3px solid #c3c4c7; background: #f6f7f7; }
+
+/* Pierścień i reszta kafelka stoją obok siebie, dopóki jest na to miejsce: kokpit
+   WordPressa daje kolumnę węższą niż 400 px, więc przy zwężeniu rysunek schodzi nad
+   treść zamiast ją ściskać. Szerokość pierścienia w procentach, bo kolumna kokpitu
+   zmienia się z szerokością okna. */
+.calmfox-watch.cw-widget .cw-widget-body { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: flex-start; margin-top: 10px; }
+.calmfox-watch.cw-widget .cw-widget-body .cw-ring { flex: 0 0 auto; width: 140px; max-width: 42%; margin: 0; }
+.calmfox-watch.cw-widget .cw-widget-rest { flex: 1 1 200px; min-width: 0; }
+
+/* Trzy liczby na jedno spojrzenie. Skala jest kokpitowa (13 px podstawy), więc liczba
+   jest wyraźnie większa od etykiety, ale nie konkuruje z liczbą w pierścieniu. */
+.calmfox-watch.cw-widget .cw-counts { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 0 8px; }
+.calmfox-watch.cw-widget .cw-count b { display: block; font-size: 22px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.calmfox-watch.cw-widget .cw-count span { display: block; font-size: 11px; font-weight: 600; color: #646970; }
+.calmfox-watch.cw-widget .cw-count-ok b { color: #116329; }
+.calmfox-watch.cw-widget .cw-count-warn b { color: #996800; }
+.calmfox-watch.cw-widget .cw-count-fail b { color: #b32d2e; }
+/* Zero uwag i zero awarii przygaszamy: zero nie jest wiadomością, tylko jej brakiem. */
+.calmfox-watch.cw-widget .cw-count-zero b { color: #a7aaad; }
+
+.calmfox-watch.cw-widget .cw-widget-areas { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 0 0; font-size: 12px; }
+.calmfox-watch.cw-widget .cw-widget-areas li { display: inline-flex; align-items: center; gap: 5px; margin: 0; color: #3c434a; }
+.calmfox-watch.cw-widget .cw-widget-areas b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Zachęta stoi na miejscu, w którym oceny nie ma — obok pustego pierścienia — więc
+   mówi o tym, czego tam brakuje, a nie o cenniku w oderwaniu od ekranu. */
+.calmfox-watch.cw-widget .cw-widget-upsell { margin-top: 10px; padding: 8px 12px; border-left: 3px solid #2271b1; background: #f6f7f7; }
+.calmfox-watch.cw-widget .cw-widget-upsell h3 { margin: 0 0 6px; font-size: 13px; }
+.calmfox-watch.cw-widget .cw-widget-upsell ul { margin: 0 0 10px; }
+.calmfox-watch.cw-widget .cw-widget-upsell li { margin: 0 0 2px; padding-left: 14px; position: relative; color: #3c434a; }
+.calmfox-watch.cw-widget .cw-widget-upsell li:before { content: '+'; position: absolute; left: 0; color: #2271b1; font-weight: 700; }
+.calmfox-watch.cw-widget .cw-widget-actions { margin: 12px 0 0; }
 
 /* Kondycja strony: liczba z panelu razem z pokryciem pomiaru. Barwę wybiera hub
    (pasmo), wtyczka nie powtarza progów — dwie kopie rozjechałyby się przy pierwszej
