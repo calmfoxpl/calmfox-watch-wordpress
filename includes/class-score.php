@@ -1,6 +1,6 @@
 <?php
 /**
- * Kondycja strony z panelu: jedna liczba 0–100 z pięciu obszarów (KONDYCJA.md).
+ * Kondycja strony z panelu: jedna liczba 0–100 z pięciu obszarów.
  *
  * To JEDYNE miejsce, w którym wtyczka pyta hub o coś dla siebie. Reszta kontraktu jest
  * pull — hub odpytuje nas — ale ocena powstaje po jego stronie (bierze pod uwagę uptime,
